@@ -1,6 +1,6 @@
 <img src="./segformer.png" width="500px"></img>
 
-## Segformer - Pytorch (wip)
+## Segformer - Pytorch
 
 Implementation of <a href="https://arxiv.org/abs/2105.15203">Segformer</a>, Attention + MLP neural network for segmentation, in Pytorch.
 
