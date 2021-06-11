@@ -1,3 +1,4 @@
+from math import sqrt
 from functools import partial
 import torch
 from torch import nn, einsum
@@ -82,7 +83,6 @@ class MiT(nn.Module):
     def __init__(
         self,
         *,
-        image_size,
         channels,
         dims,
         heads,
@@ -99,13 +99,8 @@ class MiT(nn.Module):
         self.stages = nn.ModuleList([])
 
         for (dim_in, dim_out), (kernel, stride, padding), num_layers, ff_expansion, heads, reduction_ratio in zip(dim_pairs, stage_kernel_stride_pad, num_layers, ff_expansion, heads, reduction_ratio):
-            image_size //= stride
-
-            overlap_patch_embed = nn.Sequential(
-                nn.Unfold(kernel, stride = stride, padding = padding),
-                Rearrange('b c (h w) -> b c h w', h = image_size, w = image_size),
-                nn.Conv2d(dim_in * kernel ** 2, dim_out, 1),
-            )
+            get_overlap_patches = nn.Unfold(kernel, stride = stride, padding = padding)
+            overlap_patch_embed = nn.Conv2d(dim_in * kernel ** 2, dim_out, 1)
 
             layers = nn.ModuleList([])
 
@@ -116,6 +111,7 @@ class MiT(nn.Module):
                 ]))
 
             self.stages.append(nn.ModuleList([
+                get_overlap_patches,
                 overlap_patch_embed,
                 layers
             ]))
@@ -125,12 +121,21 @@ class MiT(nn.Module):
         x,
         return_layer_outputs = False
     ):
+        h, w = x.shape[-2:]
+
         layer_outputs = []
-        for (overlap_embed, layers) in self.stages:
+        for (get_overlap_patches, overlap_embed, layers) in self.stages:
+            x = get_overlap_patches(x)
+
+            num_patches = x.shape[-1]
+            ratio = int(sqrt((h * w) / num_patches))
+            x = rearrange(x, 'b c (h w) -> b c h w', h = h // ratio)
+
             x = overlap_embed(x)
             for (attn, ff) in layers:
                 x = attn(x) + x
                 x = ff(x) + x
+
             layer_outputs.append(x)
 
         ret = x if not return_layer_outputs else layer_outputs
@@ -140,7 +145,6 @@ class Segformer(nn.Module):
     def __init__(
         self,
         *,
-        image_size,
         patch_size = 4,
         dims = (32, 64, 160, 256),
         heads = (1, 2, 5, 8),
@@ -156,7 +160,6 @@ class Segformer(nn.Module):
         assert all([*map(lambda t: len(t) == 4, (dims, heads, ff_expansion, reduction_ratio, num_layers))]), 'only four stages are allowed, all keyword arguments must be either a single value or a tuple of 4 values'
 
         self.mit = MiT(
-            image_size = image_size,
             channels = channels,
             dims = dims,
             heads = heads,
