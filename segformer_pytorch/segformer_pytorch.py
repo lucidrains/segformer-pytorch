@@ -39,18 +39,16 @@ class EfficientSelfAttention(nn.Module):
         super().__init__()
         self.scale = (dim // heads) ** -0.5
         self.heads = heads
-        self.reduction_ratio = reduction_ratio
 
-        self.to_qkv = nn.Conv2d(dim, dim * 3, 1, bias = False)
+        self.to_q = nn.Conv2d(dim, dim, 1, bias = False)
+        self.to_kv = nn.Conv2d(dim, dim * 2, reduction_ratio, stride = reduction_ratio, bias = False)
         self.to_out = nn.Conv2d(dim, dim, 1, bias = False)
 
     def forward(self, x):
         h, w = x.shape[-2:]
-        heads, r = self.heads, self.reduction_ratio
+        heads = self.heads
 
-        q, k, v = self.to_qkv(x).chunk(3, dim = 1)
-        k, v = map(lambda t: reduce(t, 'b c (h r1) (w r2) -> b c h w', 'mean', r1 = r, r2 = r), (k, v))
-
+        q, k, v = (self.to_q(x), *self.to_kv(x).chunk(2, dim = 1))
         q, k, v = map(lambda t: rearrange(t, 'b (h c) x y -> (b h) (x y) c', h = heads), (q, k, v))
 
         sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
