@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
   name = 'segformer-pytorch',
   packages = find_packages(),
-  version = '0.0.3',
+  version = '0.0.4',
   license='MIT',
   description = 'Segformer - Pytorch',
   author = 'Phil Wang',
