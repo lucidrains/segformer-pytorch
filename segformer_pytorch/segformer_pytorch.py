@@ -153,7 +153,6 @@ class Segformer(nn.Module):
     def __init__(
         self,
         *,
-        patch_size = 4,
         dims = (32, 64, 160, 256),
         heads = (1, 2, 5, 8),
         ff_expansion = (8, 8, 4, 4),

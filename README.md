@@ -19,7 +19,6 @@ import torch
 from segformer_pytorch import Segformer
 
 model = Segformer(
-    patch_size = 4,                 # patch size
     dims = (32, 64, 160, 256),      # dimensions of each stage
     heads = (1, 2, 5, 8),           # heads of each stage
     ff_expansion = (8, 8, 4, 4),    # feedforward expansion factor of each stage
